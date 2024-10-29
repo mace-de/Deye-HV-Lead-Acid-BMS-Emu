@@ -1,4 +1,4 @@
-//#define BYDCAN
+#include <config.h>
 #ifdef BYDCAN
 #include "datalayer.h"
 #include "BYD.h"

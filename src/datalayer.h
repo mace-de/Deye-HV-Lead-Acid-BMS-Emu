@@ -1,35 +1,14 @@
 #pragma once
 #include<Arduino.h>
 #include"types.h"
-
-/* Battery settings */
-// Predefined total energy capacity of the battery in mA-hours
-#define BATTERY_AH_MAX 14800
-// Standard battery voltage x*10 V
-#define BATTERY_NOMINAL_VOLTAGE 3850
-// 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
-#define BATTERY_MAXPERCENTAGE 10000
-// 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
-#define BATTERY_MINPERCENTAGE 2000
-// 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_CHARGE_AMP 30
-// 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_DISCHARGE_AMP 100
-// lead acid bulk charging voltage x*10V
-#define BATTERY_BULK_VOLTAGE 4600
-// lead acid float charging voltage x*10V
-#define BATTERY_FLOAT_VOLTAGE 4300
-// lead acid bulk->float switch curent x*10 mA
-#define BATTERY_BULK_FLOAT_SP 40
-// lead acid float->bulk switch voltage x*10 V
-#define BATTERY_FLOAT_BULK_SP 4000
+#include <config.h>
 
 typedef struct {
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
-  uint16_t max_design_voltage_dV = 4600;
+  uint16_t max_design_voltage_dV = BATTERY_BULK_VOLTAGE;
   /** The minimum intended packvoltage, in deciVolt. 3300 = 330.0 V */
-  uint16_t min_design_voltage_dV = 3750;
+  uint16_t min_design_voltage_dV = BATTERY_NOMINAL_VOLTAGE-15;
   /** BYD CAN specific setting, max charge in deciAmpere. 300 = 30.0 A */
   uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
   /** BYD CAN specific setting, max discharge in deciAmpere. 300 = 30.0 A */
@@ -38,9 +17,9 @@ typedef struct {
 
 typedef struct {
   /** Maximum allowed battery discharge power in Watts */
-  uint32_t max_discharge_power_W = 2000;
+  uint32_t max_discharge_power_W = MAX_DISCHARGE_POWER_W;
   /** Maximum allowed battery charge power in Watts */
-  uint32_t max_charge_power_W = 2000;
+  uint32_t max_charge_power_W = MAX_CHARGE_POWER_W;
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
   int16_t temperature_max_dC=150;

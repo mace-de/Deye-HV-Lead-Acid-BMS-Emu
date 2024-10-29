@@ -10,9 +10,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <RtcDS1302.h>
-// #include"BYD.h"
+#include "BYD.h"
 #include "PYLON-CAN.h"
 #include "datalayer.h"
+#include <config.h>
 
 #define LED_TYPE        LED_STRIP_WS2812
 #define LED_TYPE_IS_RGBW 0
@@ -31,11 +32,11 @@ unsigned long previousMillisUpdateVal = 0;
 void init_CAN();
 void receive_can_native();
 void core_loop(void *task_time_us);
-const char *ssid = "Your SSID";
-const char *pass = "Your PW";
+const char *ssid = SSID;
+const char *pass = PASSWORD;
 float webvolt = 0.0, webamp = 0.0, webah = 0.0, websoc = 0.0;
 WebServer server(80); // creating a webserver object
-IPAddress ip(192, 168, 0, 200), ipgw(192, 168, 0, 1), ipsn(255, 255, 255, 0);
+IPAddress ip(IP), ipgw(GATEWAY), ipsn(NETMASK);
 String headString = "<head><style>" // head and CSS style elements
                     ".blueBox {"
                     "background-color: blue;"

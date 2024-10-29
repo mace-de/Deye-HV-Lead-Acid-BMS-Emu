@@ -1,4 +1,4 @@
-#define PYLONCAN
+#include<config.h>
 #ifdef PYLONCAN
 #include "datalayer.h"
 #include "PYLON-CAN.h"
