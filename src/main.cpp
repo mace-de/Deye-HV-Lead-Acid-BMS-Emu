@@ -53,7 +53,7 @@ unsigned long previousMillis = 0; // will store last time a CAN Message was send
 const int interval = 1000;        // interval at which send CAN Messages (milliseconds)
 const int rx_queue_size = 10;     // Receive Queue size
 char s[80];
-u_int32_t mamps = 50400000;
+u_int32_t mamps = BATTERY_AH_MAX*3600;
 SemaphoreHandle_t TaskMutex;
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 ModbusClientRTU mymodbus;
@@ -61,7 +61,7 @@ void handleData(ModbusMessage msg, uint32_t token)
 {
   int16_t volt, amp;
   static int16_t storecnt = 0;
-  static uint16_t max_volt_int = 4600;
+  static uint16_t max_volt_int = BATTERY_BULK_VOLTAGE;
   float amph, voltf, ampf, proz;
   bool tog = 0;
   if (token = 1234)
