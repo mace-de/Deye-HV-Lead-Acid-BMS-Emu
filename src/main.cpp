@@ -1,5 +1,5 @@
 #include <Arduino.h>
-
+#include <LiteLED.h>
 #include <ESP32CAN.h>
 #include <CAN_config.h>
 #include <stdio.h>
@@ -14,7 +14,11 @@
 #include "PYLON-CAN.h"
 #include "datalayer.h"
 
-ThreeWire myWire(18, 5, 4); // IO, SCLK, CE
+#define LED_TYPE        LED_STRIP_WS2812
+#define LED_TYPE_IS_RGBW 0
+LiteLED myLED( LED_TYPE, LED_TYPE_IS_RGBW );
+
+ThreeWire myWire(25, 32, 33); // IO, SCLK, CE
 RtcDS1302 Rtc(myWire);
 
 int64_t core_task_time_us;
@@ -92,13 +96,13 @@ void handleData(ModbusMessage msg, uint32_t token)
     if ((volt > (datalayer.battery.info.max_design_voltage_dV - 1)) && (amp < 0) && (amp > -BATTERY_BULK_FLOAT_SP))
     {
       datalayer.battery.status.reported_soc = 100 * 100;
-      digitalWrite(2,1);
+      myLED.setPixel( 0, 0x00ff00, 1 );
       max_volt_int = BATTERY_FLOAT_VOLTAGE;
     }
     if (volt < BATTERY_FLOAT_BULK_SP)
     {
       max_volt_int = BATTERY_BULK_VOLTAGE;
-      digitalWrite(2,0);
+      myLED.setPixel( 0, 0x0000ff, 1 );
     }
     if (datalayer.battery.info.max_design_voltage_dV < max_volt_int)
     {
@@ -167,9 +171,11 @@ void trackTemperatureScreen()
 void setup()
 {
   u_int32_t temp = 0;
-  pinMode(2, OUTPUT);
+  myLED.begin( 4, 1 );
+  myLED.brightness( 50 );
+  myLED.setPixel( 0, 0xff0000, 1 );    
   pinMode(15, INPUT_PULLDOWN);
-  Wire.setPins(19, 21);
+  Wire.setPins(5, 12);
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
   { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
@@ -198,7 +204,7 @@ void setup()
   display.display();
 
   RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1);
+  Serial2.begin(9600, SERIAL_8N1,21,22);
   mymodbus.onDataHandler(&handleData);
   Serial.begin(115200);
   mymodbus.begin(Serial2);
@@ -260,8 +266,8 @@ void init_CAN()
 {
   // CAN pins
   CAN_cfg.speed = CAN_SPEED_1000KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_22;
-  CAN_cfg.rx_pin_id = GPIO_NUM_23;
+  CAN_cfg.tx_pin_id = GPIO_NUM_27;
+  CAN_cfg.rx_pin_id = GPIO_NUM_26;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
