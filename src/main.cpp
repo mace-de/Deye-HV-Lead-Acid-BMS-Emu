@@ -72,9 +72,9 @@ void handleData(ModbusMessage msg, uint32_t token)
   if (token = 1234)
   {
     msg.get(3, volt);
+    msg.get(11, amp);
     xSemaphoreTake(TaskMutex, portMAX_DELAY);
     datalayer.battery.status.voltage_dV = volt;
-    msg.get(11, amp);
     datalayer.battery.status.current_dA = amp / 10;
     if ((volt > (datalayer.battery.info.max_design_voltage_dV - 1)) && (amp < 0) && (amp > -BATTERY_BULK_FLOAT_SP))
     {
@@ -82,7 +82,8 @@ void handleData(ModbusMessage msg, uint32_t token)
     }
     voltf = volt / 10.0;
     ampf = amp < 0 ? amp / 120.0 : amp / 100.0;
-    mamps = mamps - amp * 10;
+    if(mamps > 0) mamps = mamps - amp * 10;
+    if(mamps > BATTERY_AH_MAX * 3600) mamps=BATTERY_AH_MAX * 3600;
     amph = mamps / 3600000.0;
     proz = amph / (BATTERY_AH_MAX / 1000.0) * 100.0;
     datalayer.battery.status.Remain_Ah = amph * 10.0;
@@ -97,13 +98,11 @@ void handleData(ModbusMessage msg, uint32_t token)
     if ((volt > (datalayer.battery.info.max_design_voltage_dV - 1)) && (amp < 0) && (amp > -BATTERY_BULK_FLOAT_SP))
     {
       datalayer.battery.status.reported_soc = 100 * 100;
-      myLED.setPixel( 0, 0x00ff00, 1 );
       max_volt_int = BATTERY_FLOAT_VOLTAGE;
     }
     if (volt < BATTERY_FLOAT_BULK_SP)
     {
       max_volt_int = BATTERY_BULK_VOLTAGE;
-      myLED.setPixel( 0, 0x0000ff, 1 );
     }
     if (datalayer.battery.info.max_design_voltage_dV < max_volt_int)
     {
@@ -228,8 +227,7 @@ void setup()
   mymodbus.begin(Serial2);
   Rtc.Begin();
   Rtc.GetMemory((uint8_t *)&temp, 4);
-  if (temp != 0)
-    mamps = temp;
+  if (temp <= BATTERY_AH_MAX*3600) mamps = temp;
   server.on("/bat", trackTemperatureScreen);
   server.begin(80);
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, 4, &main_loop_task, 1);
