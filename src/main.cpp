@@ -15,11 +15,11 @@
 #include "datalayer.h"
 #include <config.h>
 
-#define LED_TYPE        LED_STRIP_WS2812
+#define LED_TYPE LED_STRIP_WS2812
 #define LED_TYPE_IS_RGBW 0
 LiteLED myLED( LED_TYPE, LED_TYPE_IS_RGBW );
 
-ThreeWire myWire(25, 32, 33); // IO, SCLK, CE
+ThreeWire myWire(DS1302_IO_PIN, DS1302_SCLK_PIN, DS1302_CE_PIN); // IO, SCLK, CE
 RtcDS1302 Rtc(myWire);
 
 int64_t core_task_time_us;
@@ -68,7 +68,7 @@ void handleData(ModbusMessage msg, uint32_t token)
   static int16_t storecnt = 0;
   static uint16_t max_volt_int = BATTERY_BULK_VOLTAGE;
   float amph, voltf, ampf, proz;
-  bool tog = 0;
+  static bool tog = 0;
   if (token = 1234)
   {
     msg.get(3, volt);
@@ -109,11 +109,13 @@ void handleData(ModbusMessage msg, uint32_t token)
     {
       datalayer.battery.info.max_design_voltage_dV++;
     }
-    else
+    if (datalayer.battery.info.max_design_voltage_dV > max_volt_int)
     {
       datalayer.battery.info.max_design_voltage_dV--;
     }
     xSemaphoreGive(TaskMutex);
+    if(max_volt_int = BATTERY_BULK_VOLTAGE)myLED.setPixel( 0, 0x00ff00, 1 );
+    else myLED.setPixel( 0, 0x0000ff, 1 );
     webah = amph;
     webamp = ampf;
     webvolt = voltf;
@@ -132,12 +134,20 @@ void handleData(ModbusMessage msg, uint32_t token)
     display.print(proz);
     display.print("%");
     display.display();
+    if(tog) {
+      myLED.brightness( 10 );
+      myLED.show();
+    }
+    else{
+      myLED.brightness( 50 );
+      myLED.show();
+    }
+    tog=!tog;
     if (storecnt >= 30)
     {
       storecnt = 0;
       Rtc.SetIsWriteProtected(false);
       Rtc.SetMemory((uint8_t *)&mamps, 4);
-      tog = !tog;
     }
     else
       storecnt++;
@@ -172,11 +182,12 @@ void trackTemperatureScreen()
 void setup()
 {
   u_int32_t temp = 0;
-  myLED.begin( 4, 1 );
-  myLED.brightness( 50 );
+  Serial.begin(115200);
+  myLED.begin( WS2812_PIN, 1,0 );
+  myLED.brightness( 10 );
   myLED.setPixel( 0, 0xff0000, 1 );    
-  pinMode(15, INPUT_PULLDOWN);
-  Wire.setPins(5, 12);
+  //pinMode(15, INPUT_PULLDOWN);
+  Wire.setPins(DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
   { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
@@ -199,42 +210,51 @@ void setup()
     display.print(".");
     display.display();
   }
+  myLED.brightness( 30,1 );
   display.println(".");
   display.println("WLAN AKT");
   display.print(WiFi.localIP());
   display.display();
 
+  pinMode(RS485_EN_PIN, OUTPUT);
+  digitalWrite(RS485_EN_PIN, HIGH);
+  pinMode(RS485_SE_PIN, OUTPUT);
+  digitalWrite(RS485_SE_PIN, HIGH);
+  pinMode(PIN_5V_EN, OUTPUT);
+  digitalWrite(PIN_5V_EN, HIGH);
   RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1,21,22);
+  Serial2.begin(9600, SERIAL_8N1,RS485_RX_PIN,RS485_TX_PIN);
   mymodbus.onDataHandler(&handleData);
-  Serial.begin(115200);
   mymodbus.begin(Serial2);
   Rtc.Begin();
   Rtc.GetMemory((uint8_t *)&temp, 4);
   if (temp != 0)
     mamps = temp;
-  Serial.println(temp);
   server.on("/bat", trackTemperatureScreen);
   server.begin(80);
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, 4, &main_loop_task, 1);
   TaskMutex=xSemaphoreCreateMutex();
+  myLED.brightness( 50 ,1);
 }
 
 void loop()
 {
+  int reconcnt=0;
   server.handleClient();
-  // CAN_frame_t rx_frame;
-
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval)
   {
     previousMillis = currentMillis;
-    // Serial.println("Mod-Reqest");
+     //Serial.println("Mod-Reqest");
     mymodbus.addRequest(1234, 1, READ_HOLD_REGISTER, 587, 5);
 
     if (WiFi.status() == WL_CONNECTION_LOST)
     {
-      WiFi.reconnect();
+      if(reconcnt>30){
+        WiFi.reconnect();
+        reconcnt=0;
+      }
+      else reconcnt++;
     }
   }
 }
@@ -266,9 +286,11 @@ void core_loop(void *task_time_us)
 void init_CAN()
 {
   // CAN pins
+  pinMode(CAN_SE_PIN, OUTPUT);
+  digitalWrite(CAN_SE_PIN, LOW);
   CAN_cfg.speed = CAN_SPEED_1000KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_27;
-  CAN_cfg.rx_pin_id = GPIO_NUM_26;
+  CAN_cfg.tx_pin_id = (gpio_num_t) CAN_TX_PIN;
+  CAN_cfg.rx_pin_id = (gpio_num_t) CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
