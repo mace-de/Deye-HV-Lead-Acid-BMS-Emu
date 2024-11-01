@@ -231,16 +231,15 @@ void setup()
   TaskMutex=xSemaphoreCreateMutex();
   myLED.brightness( 50 ,1);
 }
-
 void loop()
 {
-  int reconcnt=0;
-  unsigned long previousMillis = 0; // will store last time a Modbus Message was send
-  const int interval = 999;        // interval at which send Modbus Messages (milliseconds)
+  static int reconcnt=0;
+  static unsigned long previousMillis = 0; // will store last time a Modbus Message was send
   server.handleClient();
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval)
+  if (currentMillis - previousMillis >= 999)
   {
+    Serial.println("modreq");
     previousMillis = currentMillis;
     mymodbus.addRequest(1234, 1, READ_HOLD_REGISTER, 587, 5);
     if (WiFi.status() == WL_CONNECTION_LOST)
@@ -257,7 +256,6 @@ void loop()
 void core_loop(void *task_time_us)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(1); // Convert 1ms to ticks
   unsigned long previousMillisUpdateVal = 0;
   while (true)
   {
