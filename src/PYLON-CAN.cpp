@@ -210,7 +210,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (digitalRead(15)) {
+  //seems Deye Inverter ignore this
+  if (digitalRead(CHARGE_DISCHARGE_LOCK_PIN)) {
     PYLON_4280.data.u8[0] = 0xAA;
     PYLON_4280.data.u8[1] = 0xAA;
     PYLON_4280.data.u8[2] = 0xAA;

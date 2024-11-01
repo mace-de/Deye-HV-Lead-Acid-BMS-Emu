@@ -12,7 +12,7 @@
 // lead acid float charging voltage x*10V
 #define BATTERY_FLOAT_VOLTAGE 4300
 // lead acid bulk->float switch curent x*10 mA
-#define BATTERY_BULK_FLOAT_SP 40
+#define BATTERY_BULK_FLOAT_SP -50
 // lead acid float->bulk switch voltage x*10 V
 #define BATTERY_FLOAT_BULK_SP 4100
 /** Maximum allowed battery discharge power in Watts */
@@ -24,7 +24,8 @@
 #define PYLONCAN
 /** WLAN credentials */
 #define SSID "Your SSID"
-#define PASSWORD "Your WLAN Key"
+#define PASSWORD "Yout WLAN Key"
+
 #define IP 192, 168, 0, 200
 #define GATEWAY 192, 168, 0, 1
 #define NETMASK 255, 255, 255, 0
@@ -44,3 +45,4 @@
 #define DS1302_IO_PIN 25
 #define DS1302_SCLK_PIN 32
 #define DS1302_CE_PIN 33
+#define CHARGE_DISCHARGE_LOCK_PIN 34

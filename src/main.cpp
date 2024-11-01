@@ -26,9 +26,7 @@ int64_t core_task_time_us;
 TaskHandle_t main_loop_task;
 
 // Interval settings
-uint16_t intervalUpdateValues = INTERVAL_5_S; // Interval at which to update inverter values / Modbus registers
-unsigned long previousMillis10ms = 50;
-unsigned long previousMillisUpdateVal = 0;
+
 void init_CAN();
 void receive_can_native();
 void core_loop(void *task_time_us);
@@ -54,10 +52,9 @@ String refreshString = "<meta http-equiv=\"refresh\" content=\"10\"></head>";
 String trackTempString = "</BR><h1 align=\"center\">Batteriedaten</h1></div>";
 
 CAN_device_t CAN_cfg;             // CAN Config
-unsigned long previousMillis = 0; // will store last time a CAN Message was send
-const int interval = 1000;        // interval at which send CAN Messages (milliseconds)
+
 const int rx_queue_size = 10;     // Receive Queue size
-char s[80];
+
 u_int32_t mamps = BATTERY_AH_MAX*3600;
 SemaphoreHandle_t TaskMutex;
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
@@ -95,7 +92,7 @@ void handleData(ModbusMessage msg, uint32_t token)
     {
       datalayer.battery.status.reported_soc = proz * 100;
     }
-    if ((volt > (datalayer.battery.info.max_design_voltage_dV - 1)) && (amp < 0) && (amp > -BATTERY_BULK_FLOAT_SP))
+    if ((volt > (datalayer.battery.info.max_design_voltage_dV - 10)) && (amp < 0) && (amp > BATTERY_BULK_FLOAT_SP))
     {
       datalayer.battery.status.reported_soc = 100 * 100;
       max_volt_int = BATTERY_FLOAT_VOLTAGE;
@@ -165,15 +162,15 @@ void trackTemperatureScreen()
   message += "</h2></div>";
   message += "<div align=\"center\";>";
   message += "</BR><h2>Strom [A]: ";
-  message += String(webamp, 1);
+  message += String(webamp, 2);
   message += "</h2></div>";
   message += "<div align=\"center\";>";
   message += "</BR><h2>Restladung [Ah]: ";
-  message += String(webah, 1);
+  message += String(webah, 2);
   message += "</h2></div>";
   message += "<div align=\"center\";>";
   message += "</BR><h2>SOC [%]: ";
-  message += String(websoc, 1);
+  message += String(websoc, 2);
   message += "</h2></div>";
 
   server.send(200, "text/html", message);
@@ -185,7 +182,7 @@ void setup()
   myLED.begin( WS2812_PIN, 1,0 );
   myLED.brightness( 10 );
   myLED.setPixel( 0, 0xff0000, 1 );    
-  //pinMode(15, INPUT_PULLDOWN);
+  pinMode(CHARGE_DISCHARGE_LOCK_PIN, INPUT_PULLDOWN);
   Wire.setPins(DISPLAY_SDA_PIN, DISPLAY_SCL_PIN);
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
   { // Address 0x3D for 128x64
@@ -238,14 +235,14 @@ void setup()
 void loop()
 {
   int reconcnt=0;
+  unsigned long previousMillis = 0; // will store last time a Modbus Message was send
+  const int interval = 999;        // interval at which send Modbus Messages (milliseconds)
   server.handleClient();
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval)
   {
     previousMillis = currentMillis;
-     //Serial.println("Mod-Reqest");
     mymodbus.addRequest(1234, 1, READ_HOLD_REGISTER, 587, 5);
-
     if (WiFi.status() == WL_CONNECTION_LOST)
     {
       if(reconcnt>30){
@@ -261,12 +258,12 @@ void core_loop(void *task_time_us)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1); // Convert 1ms to ticks
-
+  unsigned long previousMillisUpdateVal = 0;
   while (true)
   {
     // Input, Runs as fast as possible
     receive_can_native();                                           // Receive CAN messages from native CAN port
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) // Every 5s normally
+    if (millis() - previousMillisUpdateVal >= INTERVAL_5_S) // Every 5s normally
     {
       previousMillisUpdateVal = millis(); // Order matters on the update_loop!
       // update_values_battery();             // Fetch battery values
@@ -277,7 +274,7 @@ void core_loop(void *task_time_us)
     }
     // Output
     send_can_inverter(); // Send CAN messages to all components
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    vTaskDelayUntil(&xLastWakeTime, INTERVAL_10_MS);
   }
 }
 
@@ -286,7 +283,7 @@ void init_CAN()
   // CAN pins
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
-  CAN_cfg.speed = CAN_SPEED_1000KBPS;
+  CAN_cfg.speed = CAN_SPEED_1000KBPS; //Because of an error in CAN-Lib configured speed must be double the real speed
   CAN_cfg.tx_pin_id = (gpio_num_t) CAN_TX_PIN;
   CAN_cfg.rx_pin_id = (gpio_num_t) CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
@@ -298,7 +295,6 @@ void receive_can_native()
   CAN_frame_t rx_frame_native;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame_native, 0) == pdTRUE)
   {
-
     CAN_frame rx_frame;
     rx_frame.ID = rx_frame_native.MsgID;
     if (rx_frame_native.FIR.B.FF == CAN_frame_std)
